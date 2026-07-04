@@ -1,0 +1,33 @@
+# Virtual Environments
+venv/
+.venv/
+env/
+.env_venv/
+
+# Environment variables (CRITICAL: Do not commit your Groq API key!)
+.env
+
+# Local ChromaDB Vector Store
+chroma_db/
+test_chroma_db/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
