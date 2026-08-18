@@ -5,3 +5,6 @@ sentence-transformers
 PyMuPDF
 python-docx
 python-dotenv
+langgraph
+langchain-core
+langchain-groq

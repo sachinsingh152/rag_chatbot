@@ -75,7 +75,7 @@ class VectorStore:
         
         return True, f"Successfully indexed {len(chunks)} chunks from '{filename}'."
         
-    def retrieve(self, query: str, top_k: int = 4) -> list[dict]:
+    def retrieve(self, query: str, top_k: int = 4, selected_files: list[str] = None) -> list[dict]:
         """
         Retrieves the top_k most relevant chunks for a given query.
         Returns a list of dictionaries containing the chunk, metadata, and distance.
@@ -86,9 +86,17 @@ class VectorStore:
         # Embed the query using the same model
         query_embedding = self.embedding_model.encode([query]).tolist()
         
+        where_clause = None
+        if selected_files:
+            if len(selected_files) == 1:
+                where_clause = {"filename": selected_files[0]}
+            else:
+                where_clause = {"filename": {"$in": selected_files}}
+        
         results = self.collection.query(
             query_embeddings=query_embedding,
             n_results=top_k,
+            where=where_clause,
             include=["documents", "metadatas", "distances"]
         )
         

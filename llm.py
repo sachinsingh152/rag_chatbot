@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class LLMClient:
-    def __init__(self, model_name: str = "llama-3.1-8b-instant"):
+    def __init__(self, model_name: str = "qwen/qwen3.6-27b"):
         """
         Initializes the Groq client. Expects GROQ_API_KEY in the environment.
         Using llama-3.1-8b-instant as a fast and capable default model.
@@ -46,6 +46,8 @@ INSTRUCTIONS:
 1. Answer the question using ONLY the provided context.
 2. If the answer is not contained in the context, say exactly: "I don't know based on the provided documents." Do not guess or use outside knowledge.
 3. If the context contains the answer, be concise and clear.
+4. EVERY claim in your answer MUST include an inline citation indicating the source document name, formatted exactly as [Source: filename].
+5. Output ONLY the final answer. DO NOT output any <think> tags, reasoning steps, or internal monologue.
 """
 
         # 3. Construct the Message History
@@ -66,7 +68,7 @@ INSTRUCTIONS:
                 messages=messages,
                 model=self.model_name,
                 temperature=0.0, # Low temperature for more deterministic/factual answers
-                max_tokens=1024,
+                max_tokens=4096,
                 stream=True,
             )
             return stream
