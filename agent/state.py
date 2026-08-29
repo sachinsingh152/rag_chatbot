@@ -16,12 +16,20 @@ class AgentState(TypedDict):
     # Retrieval tracking
     search_queries: Annotated[list[str], operator.add] # Append new queries
     evidence: Annotated[list[dict], operator.add] # Append new chunks
+    web_evidence: Annotated[list[dict], operator.add] # Web search results
     
     # Reflection output
     reflection: str
     sufficient_evidence: bool
+    use_web_search: bool
     retrieval_iterations: int
+    generation_iterations: int
     selected_files: list[str]
+    username: str
+    
+    # Generation & Hallucination Checking
+    draft_response: str
+    hallucination_feedback: str
     
     # Final Output
     final_response: str

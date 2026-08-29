@@ -1,5 +1,5 @@
 import chromadb
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 import hashlib
 import os
 
@@ -11,6 +11,9 @@ class VectorStore:
         print("Loading embedding model (this might take a moment the first time)...")
         # all-MiniLM-L6-v2 is fast, lightweight, and suitable for local CPU execution
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        
+        print("Loading cross-encoder re-ranking model...")
+        self.cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
         
         # Initialize ChromaDB persistent client
         self.client = chromadb.PersistentClient(path=persist_directory)
@@ -25,7 +28,7 @@ class VectorStore:
         """Generate a hash for the document to avoid re-embedding."""
         return hashlib.md5(text.encode('utf-8')).hexdigest()
 
-    def add_documents(self, filename: str, text: str, chunks: list[str]) -> tuple[bool, str]:
+    def add_documents(self, filename: str, text: str, chunks: list[str], username: str) -> tuple[bool, str]:
         """
         Embeds and stores chunks if the file hasn't been added already.
         Returns a tuple of (success_boolean, message).
@@ -35,9 +38,10 @@ class VectorStore:
 
         # Check if file already exists in metadata to prevent duplicates
         existing_docs = self.collection.get(
-            where={"filename": filename},
+            where={"$and": [{"filename": filename}, {"username": username}]},
             limit=1
         )
+
         
         if existing_docs and existing_docs['ids']:
             return False, f"File '{filename}' is already indexed."
@@ -55,13 +59,14 @@ class VectorStore:
         chunk_embeddings = self.embedding_model.encode(chunks).tolist()
         
         for i, chunk in enumerate(chunks):
-            chunk_id = f"{filename}_chunk_{i}"
+            chunk_id = f"{username}_{filename}_chunk_{i}"
             ids.append(chunk_id)
             documents.append(chunk)
             metadatas.append({
                 "filename": filename,
                 "chunk_index": i,
-                "file_hash": file_hash
+                "file_hash": file_hash,
+                "username": username
             })
             embeddings.append(chunk_embeddings[i])
             
@@ -75,7 +80,7 @@ class VectorStore:
         
         return True, f"Successfully indexed {len(chunks)} chunks from '{filename}'."
         
-    def retrieve(self, query: str, top_k: int = 4, selected_files: list[str] = None) -> list[dict]:
+    def retrieve(self, query: str, top_k: int = 4, selected_files: list[str] = None, username: str = None) -> list[dict]:
         """
         Retrieves the top_k most relevant chunks for a given query.
         Returns a list of dictionaries containing the chunk, metadata, and distance.
@@ -87,46 +92,77 @@ class VectorStore:
         query_embedding = self.embedding_model.encode([query]).tolist()
         
         where_clause = None
-        if selected_files:
+        if username and selected_files:
+            if len(selected_files) == 1:
+                where_clause = {"$and": [{"username": username}, {"filename": selected_files[0]}]}
+            else:
+                where_clause = {"$and": [{"username": username}, {"filename": {"$in": selected_files}}]}
+        elif username:
+            where_clause = {"username": username}
+        elif selected_files:
             if len(selected_files) == 1:
                 where_clause = {"filename": selected_files[0]}
             else:
                 where_clause = {"filename": {"$in": selected_files}}
         
+        # Fetch more candidates for re-ranking (e.g., 4x the top_k, maxing at a reasonable number)
+        fetch_k = min(top_k * 4, 20)
+        
         results = self.collection.query(
             query_embeddings=query_embedding,
-            n_results=top_k,
+            n_results=fetch_k,
             where=where_clause,
             include=["documents", "metadatas", "distances"]
         )
         
-        retrieved_chunks = []
+        initial_chunks = []
         # Check if we got results
         if results and results['ids'] and len(results['ids'][0]) > 0:
             for i in range(len(results['ids'][0])):
-                retrieved_chunks.append({
+                initial_chunks.append({
                     "id": results['ids'][0][i],
                     "document": results['documents'][0][i],
                     "metadata": results['metadatas'][0][i],
-                    "distance": results['distances'][0][i]  # Cosine distance (lower is more similar)
+                    "distance": results['distances'][0][i]
                 })
                 
-        return retrieved_chunks
+        if not initial_chunks:
+            return []
+            
+        # Cross-Encoder Re-ranking
+        # Pair each document with the query
+        cross_inp = [[query, chunk["document"]] for chunk in initial_chunks]
+        cross_scores = self.cross_encoder.predict(cross_inp)
         
-    def clear_vector_store(self) -> str:
-        """Clears all documents from the collection."""
-        collection_name = self.collection.name
-        self.client.delete_collection(collection_name)
-        self.collection = self.client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"}
-        )
-        return "Vector store cleared successfully."
+        # Add scores to chunks and sort
+        for i in range(len(initial_chunks)):
+            initial_chunks[i]["cross_score"] = float(cross_scores[i])
+            
+        # Sort descending by cross_score (higher is better)
+        initial_chunks.sort(key=lambda x: x["cross_score"], reverse=True)
         
-    def get_indexed_files(self) -> list[str]:
-        """Returns a list of unique filenames currently in the index."""
+        # Return only the top_k
+        return initial_chunks[:top_k]
+        
+    def clear_vector_store(self, username: str = None) -> str:
+        """Clears all documents from the collection for a specific user, or all if no user provided."""
+        if username:
+            self.collection.delete(where={"username": username})
+            return f"Vector store cleared successfully for user {username}."
+        else:
+            collection_name = self.collection.name
+            self.client.delete_collection(collection_name)
+            self.collection = self.client.get_or_create_collection(
+                name=collection_name,
+                metadata={"hnsw:space": "cosine"}
+            )
+            return "Vector store cleared successfully for all users."
+        
+    def get_indexed_files(self, username: str = None) -> list[str]:
+        """Returns a list of unique filenames currently in the index for a specific user."""
         # We only need the metadata to extract unique filenames
-        results = self.collection.get(include=["metadatas"])
+        where_clause = {"username": username} if username else None
+        results = self.collection.get(where=where_clause, include=["metadatas"])
         if not results or not results.get('metadatas'):
             return []
             

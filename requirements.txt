@@ -8,3 +8,5 @@ python-dotenv
 langgraph
 langchain-core
 langchain-groq
+ddgs
+bcrypt
