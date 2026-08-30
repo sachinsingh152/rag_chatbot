@@ -11,3 +11,4 @@ ddgs
 bcrypt
 pytesseract
 Pillow
+langchain-text-splitters
