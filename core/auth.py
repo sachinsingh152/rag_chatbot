@@ -3,7 +3,8 @@ import bcrypt
 import os
 import json
 
-DB_PATH = 'users.db'
+DATA_DIR = os.getenv('DATA_DIR', '.')
+DB_PATH = os.path.join(DATA_DIR, 'users.db')
 
 def init_db():
     """Initializes the database and creates the users table if it doesn't exist."""

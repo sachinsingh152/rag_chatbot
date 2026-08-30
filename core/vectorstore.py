@@ -3,8 +3,11 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 import hashlib
 import os
 
+DATA_DIR = os.getenv('DATA_DIR', '.')
+PERSIST_DIR = os.path.join(DATA_DIR, 'chroma_db')
+
 class VectorStore:
-    def __init__(self, persist_directory: str = "./chroma_db", collection_name: str = "rag_collection"):
+    def __init__(self, persist_directory: str = PERSIST_DIR, collection_name: str = "rag_collection"):
         """
         Initializes the VectorStore with a SentenceTransformer model and a ChromaDB client.
         """
