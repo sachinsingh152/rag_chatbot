@@ -246,6 +246,11 @@ class AgentNodes:
             result = self.hallucination_llm.invoke(msg)
             print(f"[DEBUG] hallucination_node: Hallucination LLM finished.")
             if result.is_hallucinated:
+                if state.get("generation_iterations", 0) >= 1:
+                    return {
+                        "final_response": "I don't know based on the provided context.",
+                        "hallucination_feedback": result.feedback
+                    }
                 return {
                     "hallucination_feedback": result.feedback
                 }

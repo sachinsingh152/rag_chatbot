@@ -144,6 +144,14 @@ class VectorStore:
         # Return only the top_k
         return initial_chunks[:top_k]
         
+    def delete_file(self, filename: str, username: str) -> str:
+        """Deletes all chunks associated with a specific file and user from the vector store."""
+        try:
+            self.collection.delete(where={"$and": [{"filename": filename}, {"username": username}]})
+            return f"Successfully deleted '{filename}' from your vector store."
+        except Exception as e:
+            return f"Error deleting file: {str(e)}"
+            
     def clear_vector_store(self, username: str = None) -> str:
         """Clears all documents from the collection for a specific user, or all if no user provided."""
         if username:

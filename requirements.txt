@@ -1,5 +1,4 @@
 streamlit
-groq
 chromadb
 sentence-transformers
 PyMuPDF
@@ -7,6 +6,8 @@ python-docx
 python-dotenv
 langgraph
 langchain-core
-langchain-groq
+langchain-google-genai
 ddgs
 bcrypt
+pytesseract
+Pillow

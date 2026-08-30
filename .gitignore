@@ -4,7 +4,7 @@ venv/
 env/
 .env_venv/
 
-# Environment variables (CRITICAL: Do not commit your Groq API key!)
+# Environment variables (CRITICAL: Do not commit your Gemini API key!)
 .env
 
 # Local ChromaDB Vector Store
@@ -29,6 +29,9 @@ __pycache__/
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# Logs and Databases
 *.log
 *.db
+*.db-journal
+*.db-shm
+*.db-wal

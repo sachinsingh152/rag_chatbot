@@ -7,8 +7,7 @@ This project is an advanced **Agentic RAG (Retrieval-Augmented Generation)** app
 - **Targeted Retrieval:** Users can select exactly which uploaded documents the agent should focus on, preventing global search noise.
 - **Transparent Reasoning:** The Streamlit UI actively displays the agent's internal workflow (Planning, Retrieving, Reflecting) and the LLM's raw `<think>` block logic.
 
-Built with Python, Streamlit, Groq (Qwen/Llama), ChromaDB, and LangGraph.
-
+Built with Python, Streamlit, Google Gemini, ChromaDB, and LangGraph.
 ## 1. Project Folder Structure
 
 The project follows a modular structure, separating the core RAG components from the agentic workflow logic:

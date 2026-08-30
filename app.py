@@ -18,6 +18,59 @@ import uuid
 # Initialize Streamlit Page
 st.set_page_config(page_title="RAG Chatbot", page_icon="📚", layout="wide")
 
+# Custom CSS for Premium UI
+st.markdown("""
+<style>
+    /* Gradient text for main titles */
+    .gradient-text {
+        background: -webkit-linear-gradient(45deg, #6366f1, #a855f7, #ec4899);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Button Hover Effects */
+    .stButton>button {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        border: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Chat Message Styling */
+    .stChatMessage {
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        border-radius: 8px;
+    }
+    
+    /* Subheaders */
+    h2, h3 {
+        font-weight: 700;
+        letter-spacing: -0.025em;
+    }
+    
+    /* Sidebar padding */
+    .css-1d391kg {
+        padding-top: 3rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # Initialize database
 init_db()
 
@@ -26,7 +79,7 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.title("Welcome to RAG Chatbot")
+    st.markdown('<h1 class="gradient-text">Welcome to Agentic RAG</h1>', unsafe_allow_html=True)
     st.markdown("Please log in or sign up to continue.")
     
     tab1, tab2 = st.tabs(["Login", "Sign Up"])
@@ -111,20 +164,32 @@ with st.sidebar:
         
     user_convs = get_user_conversations(st.session_state.get('username', ''))
     for conv in user_convs:
+        col1, col2 = st.columns([0.85, 0.15])
+        
         # Highlight active conversation
         btn_type = "primary" if conv['id'] == st.session_state.get('conversation_id') else "secondary"
-        if st.button(f"📄 {conv['title']}", key=f"conv_{conv['id']}", type=btn_type, use_container_width=True):
-            st.session_state.conversation_id = conv['id']
-            st.session_state.messages = load_chat_history(st.session_state.username, conv['id'])
-            st.rerun()
+        
+        with col1:
+            if st.button(f"📄 {conv['title']}", key=f"conv_{conv['id']}", type=btn_type, use_container_width=True):
+                st.session_state.conversation_id = conv['id']
+                st.session_state.messages = load_chat_history(st.session_state.username, conv['id'])
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️", key=f"del_{conv['id']}", use_container_width=True):
+                clear_chat_history(st.session_state.username, conv['id'])
+                if st.session_state.conversation_id == conv['id']:
+                    st.session_state.conversation_id = str(uuid.uuid4())
+                    st.session_state.messages = []
+                st.rerun()
         
     st.divider()
     
-    st.title("📚 Document Management")
+    st.markdown("### 📚 Document Management")
     
     uploaded_files = st.file_uploader(
         "Upload Documents", 
-        type=["pdf", "txt", "docx"], 
+        type=["pdf", "txt", "docx", "png", "jpg", "jpeg"], 
         accept_multiple_files=True
     )
     
@@ -143,7 +208,7 @@ with st.sidebar:
                         continue
                         
                     # 2. Chunk Text
-                    chunks = recursive_character_text_split(text, chunk_size=500, chunk_overlap=50)
+                    chunks = recursive_character_text_split(text)
                     
                     # 3. Embed & Store
                     success, msg = st.session_state.vs.add_documents(filename, text, chunks, st.session_state.username)
@@ -174,19 +239,15 @@ with st.sidebar:
         
     st.divider()
         
-    if st.button("Clear Vector Store"):
-        st.session_state.vs.clear_vector_store(st.session_state.username)
-        st.success("Vector store cleared!")
-        st.rerun()
-        
-    if st.button("Clear Chat History"):
-        clear_chat_history(st.session_state.username, st.session_state.conversation_id)
-        st.session_state.messages = []
-        st.success("Chat history cleared!")
-        st.rerun()
+    if selected_files:
+        if st.button("🗑️ Delete Selected Files"):
+            for file_to_delete in selected_files:
+                st.session_state.vs.delete_file(file_to_delete, st.session_state.username)
+            st.success(f"Deleted {len(selected_files)} files.")
+            st.rerun()
 
 # --- Main Area: Chat Interface ---
-st.title("RAG Chatbot")
+st.markdown('<h1 class="gradient-text">Agentic RAG Assistant</h1>', unsafe_allow_html=True)
 st.markdown("Ask questions based on your uploaded documents.")
 
 # Display chat messages from history
